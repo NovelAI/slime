@@ -4,7 +4,7 @@ FROM lmsysorg/sglang:${SGLANG_IMAGE_TAG} AS sglang
 # ======================================== Arguments =============================================
 
 ARG PATCH_VERSION=latest
-ARG MEGATRON_COMMIT=core_v0.14.0
+ARG MEGATRON_COMMIT=a7b3e0aa680c7059d9a0e571eeaaf4477482a60a
 
 ARG ENABLE_CUDA_13=0
 
@@ -49,7 +49,7 @@ RUN NVCC_APPEND_FLAGS="--threads 4" \
   --no-build-isolation \
   --config-settings "--build-option=--cpp_ext --cuda_ext --parallel 8" git+https://github.com/NVIDIA/apex.git@10417aceddd7d5d05d7cbf7b0fc2daad1105f8b4
 
-RUN git clone https://github.com/NVIDIA/Megatron-LM.git --recursive && \
+RUN git clone https://github.com/NovelAI/Megatron-LM.git --recursive && \
     cd Megatron-LM && git checkout ${MEGATRON_COMMIT} && \
     pip install -e .
 
