@@ -19,7 +19,7 @@ from megatron.core.optimizer_param_scheduler import OptimizerParamScheduler
 from megatron.core.pipeline_parallel import get_forward_backward_func
 from megatron.core.utils import get_model_config
 from megatron.training.global_vars import get_args
-from megatron.training.training import get_model
+from megatron.training.training import get_megatron_optimizer_config, get_model
 
 from slime.utils import tracking_utils
 from slime.utils.memory_utils import clear_memory
@@ -84,9 +84,6 @@ def get_optimizer_param_scheduler(args: Namespace, optimizer: MegatronOptimizer)
 def setup_model_and_optimizer(
     args: Namespace,
     role: str = "actor",
-    no_wd_decay_cond: Callable[..., bool] | None = None,
-    scale_lr_cond: Callable[..., bool] | None = None,
-    lr_mult: float = 1.0,
 ) -> tuple[list[DDP], MegatronOptimizer, OptimizerParamScheduler]:
     """Build model(s), wrap with DDP, and construct optimizer and scheduler.
 
@@ -111,19 +108,16 @@ def setup_model_and_optimizer(
     model = get_model(get_model_provider_func(args, role), ModelType.encoder_or_decoder)
 
     # Optimizer
-    kwargs = {}
-    for f in dataclasses.fields(OptimizerConfig):
-        if hasattr(args, f.name):
-            kwargs[f.name] = getattr(args, f.name)
-    config = OptimizerConfig(**kwargs)
+    config, config_overrides = get_megatron_optimizer_config(args)
     config.timers = None
 
+    # If the user is asking for a non-zero embedding init std, skip weight decay for embeddings
+    # to avoid embeddings from shrinking to zero as recommended in https://arxiv.org/abs/2312.16903
+    # default_skip_embedding_weight_decay=args.embedding_init_method_std is not None,
     optimizer = get_megatron_optimizer(
         config,
         model,
-        no_wd_decay_cond,
-        scale_lr_cond,
-        lr_mult,
+        config_overrides=config_overrides,
         use_gloo_process_groups=args.enable_gloo_process_groups,
     )
     opt_param_scheduler = get_optimizer_param_scheduler(args, optimizer)
